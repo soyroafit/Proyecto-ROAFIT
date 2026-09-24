@@ -13,8 +13,9 @@ const inputStyle = {
   boxSizing: 'border-box'
 }
 
-export default function Auth() {
-  const [mode, setMode] = useState('signin')
+export default function Auth({ inviteTrainerId }) {
+  const isClientInvite = Boolean(inviteTrainerId)
+  const [mode, setMode] = useState(isClientInvite ? 'signup' : 'signin')
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -31,15 +32,28 @@ export default function Auth() {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName, role: 'trainer' } }
+        options: {
+          data: {
+            full_name: fullName,
+            role: isClientInvite ? 'client' : 'trainer'
+          }
+        }
       })
       if (signUpError) {
         setError(signUpError.message)
         setLoading(false)
         return
       }
-      // El perfil se crea solo en el servidor (trigger handle_new_user),
-      // no hace falta insertarlo desde el cliente aqui.
+      if (isClientInvite) {
+        const { error: linkError } = await supabase.rpc('accept_client_invite', {
+          p_trainer_id: inviteTrainerId
+        })
+        if (linkError) {
+          setError('Cuenta creada, pero no se pudo vincular con tu entrenador: ' + linkError.message)
+          setLoading(false)
+          return
+        }
+      }
     } else {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) {
@@ -89,10 +103,14 @@ export default function Auth() {
         </div>
 
         <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>
-          {mode === 'signin' ? 'Panel del entrenador' : 'Crea tu cuenta de entrenador'}
+          {isClientInvite
+            ? 'Unete como cliente'
+            : mode === 'signin' ? 'Panel del entrenador' : 'Crea tu cuenta de entrenador'}
         </div>
         <div style={{ fontSize: 13, color: '#8E8E94', marginBottom: 24 }}>
-          {mode === 'signin'
+          {isClientInvite
+            ? 'Tu entrenador te invito a ROAFIT. Crea tu cuenta para empezar.'
+            : mode === 'signin'
             ? 'Inicia sesion para ver tus clientes y programas.'
             : 'Solo la primera vez, luego inicias sesion normal.'}
         </div>
@@ -170,33 +188,35 @@ export default function Auth() {
               marginTop: 6
             }}
           >
-            {loading ? 'Un momento...' : mode === 'signin' ? 'Iniciar sesion' : 'Crear cuenta'}
+            {loading ? 'Un momento...' : mode === 'signin' ? 'Iniciar sesion' : isClientInvite ? 'Crear mi cuenta' : 'Crear cuenta'}
           </button>
         </form>
 
-        <div style={{ marginTop: 18, textAlign: 'center', fontSize: 13, color: '#8E8E94' }}>
-          {mode === 'signin' ? (
-            <span>
-              Primera vez?{' '}
-              <button
-                onClick={() => { setMode('signup'); setError('') }}
-                style={{ background: 'none', border: 'none', color: '#CFFF5C', fontWeight: 700, cursor: 'pointer', padding: 0 }}
-              >
-                Crea tu cuenta
-              </button>
-            </span>
-          ) : (
-            <span>
-              Ya tienes cuenta?{' '}
-              <button
-                onClick={() => { setMode('signin'); setError('') }}
-                style={{ background: 'none', border: 'none', color: '#CFFF5C', fontWeight: 700, cursor: 'pointer', padding: 0 }}
-              >
-                Inicia sesion
-              </button>
-            </span>
-          )}
-        </div>
+        {!isClientInvite && (
+          <div style={{ marginTop: 18, textAlign: 'center', fontSize: 13, color: '#8E8E94' }}>
+            {mode === 'signin' ? (
+              <span>
+                Primera vez?{' '}
+                <button
+                  onClick={() => { setMode('signup'); setError('') }}
+                  style={{ background: 'none', border: 'none', color: '#CFFF5C', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                >
+                  Crea tu cuenta
+                </button>
+              </span>
+            ) : (
+              <span>
+                Ya tienes cuenta?{' '}
+                <button
+                  onClick={() => { setMode('signin'); setError('') }}
+                  style={{ background: 'none', border: 'none', color: '#CFFF5C', fontWeight: 700, cursor: 'pointer', padding: 0 }}
+                >
+                  Inicia sesion
+                </button>
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
