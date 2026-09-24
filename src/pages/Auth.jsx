@@ -5,7 +5,7 @@ const inputStyle = {
   background: '#1B1B1F',
   border: '1px solid #2A2A2F',
   borderRadius: 10,
-  padding: '12px 14px',
+  padding: '12px 44px 12px 14px',
   color: '#F5F4F0',
   fontSize: 14,
   outline: 'none',
@@ -18,6 +18,7 @@ export default function Auth() {
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -27,24 +28,18 @@ export default function Auth() {
     setLoading(true)
 
     if (mode === 'signup') {
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password })
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName, role: 'trainer' } }
+      })
       if (signUpError) {
         setError(signUpError.message)
         setLoading(false)
         return
       }
-      if (data.user) {
-        const { error: profileError } = await supabase.from('profiles').insert({
-          id: data.user.id,
-          role: 'trainer',
-          full_name: fullName || email
-        })
-        if (profileError) {
-          setError('Cuenta creada, pero hubo un problema guardando el perfil: ' + profileError.message)
-          setLoading(false)
-          return
-        }
-      }
+      // El perfil se crea solo en el servidor (trigger handle_new_user),
+      // no hace falta insertarlo desde el cliente aqui.
     } else {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
       if (signInError) {
@@ -121,15 +116,37 @@ export default function Auth() {
             style={inputStyle}
             required
           />
-          <input
-            type="password"
-            placeholder="Contrasena"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            style={inputStyle}
-            required
-            minLength={6}
-          />
+
+          <div style={{ position: 'relative' }}>
+            <input
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Contrasena"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              style={inputStyle}
+              required
+              minLength={6}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              style={{
+                position: 'absolute',
+                right: 6,
+                top: '50%',
+                transform: 'translateY(-50%)',
+                background: 'none',
+                border: 'none',
+                color: '#8E8E94',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                padding: '6px 8px'
+              }}
+            >
+              {showPassword ? 'Ocultar' : 'Ver'}
+            </button>
+          </div>
 
           {error && (
             <div style={{ fontSize: 13, color: '#FF6B7F', lineHeight: 1.4 }}>
