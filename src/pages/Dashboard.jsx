@@ -16,6 +16,7 @@ export default function Dashboard({ session }) {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     async function loadClients() {
@@ -34,6 +35,14 @@ export default function Dashboard({ session }) {
     }
     loadClients()
   }, [session.user.id])
+
+  function copyInviteLink() {
+    const link = window.location.origin + window.location.pathname + '?invite=' + session.user.id
+    navigator.clipboard.writeText(link).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2500)
+    })
+  }
 
   return (
     <div
@@ -85,8 +94,25 @@ export default function Dashboard({ session }) {
         </button>
       </div>
 
-      <div style={{ fontSize: 24, fontWeight: 800, marginBottom: 4 }}>
-        Mis clientes
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+        <div style={{ fontSize: 24, fontWeight: 800 }}>
+          Mis clientes
+        </div>
+        <button
+          onClick={copyInviteLink}
+          style={{
+            background: '#CFFF5C',
+            color: '#101012',
+            border: 'none',
+            borderRadius: 100,
+            padding: '10px 18px',
+            fontSize: 13,
+            fontWeight: 800,
+            cursor: 'pointer'
+          }}
+        >
+          {copied ? 'Enlace copiado' : '+ Invitar cliente'}
+        </button>
       </div>
       <div style={{ fontSize: 13, color: '#8E8E94', marginBottom: 24 }}>
         {loading ? 'Cargando...' : clients.length + ' cliente' + (clients.length === 1 ? '' : 's')}
@@ -112,8 +138,7 @@ export default function Dashboard({ session }) {
         >
           Todavia no tienes clientes registrados.
           <br />
-          Esta pantalla ya esta leyendo datos reales de Supabase, en cuanto invites al primer
-          cliente aparecera aqui automaticamente.
+          Toca "+ Invitar cliente" para copiar tu enlace personal y enviaselo a tu primer cliente.
         </div>
       )}
 
