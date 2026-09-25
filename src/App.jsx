@@ -5,6 +5,8 @@ import Dashboard from './pages/Dashboard'
 import Programs from './pages/Programs'
 import ProgramEditor from './pages/ProgramEditor'
 import ClientDetail from './pages/ClientDetail'
+import ClientHome from './pages/ClientHome'
+import ClientWorkout from './pages/ClientWorkout'
 
 const loadingStyle = {
   minHeight: '100vh',
@@ -17,24 +19,11 @@ const loadingStyle = {
   fontSize: 14
 }
 
-function ClientPlaceholder({ onSignOut }) {
-  return (
-    <div style={{ minHeight: '100vh', background: '#101012', color: '#F5F4F0', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', padding: 24, textAlign: 'center', gap: 16 }}>
-      <div style={{ fontSize: 20, fontWeight: 800 }}>Cuenta creada correctamente</div>
-      <div style={{ fontSize: 14, color: '#8E8E94', maxWidth: 340 }}>
-        Tu entrenador ya puede verte en su panel. La app del cliente (tus entrenamientos, tu progreso) todavia esta en construccion.
-      </div>
-      <button onClick={onSignOut} style={{ background: 'transparent', border: '1px solid #2A2A2F', color: '#C8C8CC', borderRadius: 100, padding: '10px 20px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginTop: 8 }}>
-        Cerrar sesion
-      </button>
-    </div>
-  )
-}
-
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [role, setRole] = useState(undefined)
   const [trainerView, setTrainerView] = useState({ name: 'clients' })
+  const [clientView, setClientView] = useState({ name: 'home' })
 
   const params = new URLSearchParams(window.location.search)
   const inviteTrainerId = params.get('invite')
@@ -108,7 +97,24 @@ export default function App() {
     )
   }
 
-  if (role === 'client') return <ClientPlaceholder onSignOut={() => supabase.auth.signOut()} />
+  if (role === 'client') {
+    if (clientView.name === 'workout') {
+      return (
+        <ClientWorkout
+          session={session}
+          dayId={clientView.dayId}
+          dayLabel={clientView.dayLabel}
+          onBack={() => setClientView({ name: 'home' })}
+        />
+      )
+    }
+    return (
+      <ClientHome
+        session={session}
+        onOpenDay={(dayId, dayLabel) => setClientView({ name: 'workout', dayId, dayLabel })}
+      />
+    )
+  }
 
   return <div style={loadingStyle}>No se encontro tu perfil. Intenta cerrar sesion y volver a entrar.</div>
 }
