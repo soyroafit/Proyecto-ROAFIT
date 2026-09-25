@@ -9,8 +9,10 @@ const inputStyle = {
   color: '#F5F4F0',
   fontSize: 13,
   outline: 'none',
-  boxSizing: 'border-box'
+  boxSizing: 'border-box',
+  width: '100%'
 }
+const fieldLabelStyle = { fontSize: 11, color: '#8E8E94', marginBottom: 4, display: 'block' }
 
 export default function ProgramEditor({ session, programId, onBack }) {
   const [program, setProgram] = useState(null)
@@ -135,7 +137,7 @@ export default function ProgramEditor({ session, programId, onBack }) {
             <div>
               <div style={{ fontWeight: 700, fontSize: 14 }}>{ex.name}</div>
               <div style={{ fontSize: 12, color: '#8E8E94', marginTop: 2 }}>
-                {ex.target_sets} x {ex.target_reps}{ex.target_weight_kg ? ' - ' + ex.target_weight_kg + ' kg' : ''} - RIR {ex.target_rir}
+                {ex.target_sets} series x {ex.target_reps} reps{ex.target_weight_kg ? ' - ' + ex.target_weight_kg + ' kg' : ''} - RIR {ex.target_rir}
               </div>
             </div>
             <button onClick={() => handleDeleteExercise(ex.id)} style={{ background: 'transparent', border: 'none', color: '#FF6B7F', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
@@ -148,14 +150,29 @@ export default function ProgramEditor({ session, programId, onBack }) {
       {activeDayId && (
         <form onSubmit={handleAddExercise} style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Anadir ejercicio</div>
-          <input style={inputStyle} placeholder="Nombre del ejercicio" value={exName} onChange={(e) => setExName(e.target.value)} required />
-          <div style={{ display: 'flex', gap: 8 }}>
-            <input style={{ ...inputStyle, flex: 1 }} type="number" min="1" placeholder="Series" value={exSets} onChange={(e) => setExSets(e.target.value)} />
-            <input style={{ ...inputStyle, flex: 1 }} type="number" min="1" placeholder="Reps" value={exReps} onChange={(e) => setExReps(e.target.value)} />
-            <input style={{ ...inputStyle, flex: 1 }} type="number" min="0" step="0.5" placeholder="Kg" value={exWeight} onChange={(e) => setExWeight(e.target.value)} />
-            <input style={{ ...inputStyle, flex: 1 }} type="number" min="0" placeholder="RIR" value={exRir} onChange={(e) => setExRir(e.target.value)} />
+          <div>
+            <label style={fieldLabelStyle}>Nombre del ejercicio</label>
+            <input style={inputStyle} placeholder="Ej: Press banca" value={exName} onChange={(e) => setExName(e.target.value)} required />
           </div>
-          <button type="submit" style={{ background: '#CFFF5C', color: '#101012', border: 'none', borderRadius: 100, padding: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer' }}>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <label style={fieldLabelStyle}>Series</label>
+              <input style={inputStyle} type="number" min="1" value={exSets} onChange={(e) => setExSets(e.target.value)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={fieldLabelStyle}>Repeticiones</label>
+              <input style={inputStyle} type="number" min="1" value={exReps} onChange={(e) => setExReps(e.target.value)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={fieldLabelStyle}>Peso (kg)</label>
+              <input style={inputStyle} type="number" min="0" step="0.5" placeholder="Opcional" value={exWeight} onChange={(e) => setExWeight(e.target.value)} />
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={fieldLabelStyle}>RIR</label>
+              <input style={inputStyle} type="number" min="0" value={exRir} onChange={(e) => setExRir(e.target.value)} />
+            </div>
+          </div>
+          <button type="submit" style={{ background: '#CFFF5C', color: '#101012', border: 'none', borderRadius: 100, padding: 12, fontSize: 14, fontWeight: 800, cursor: 'pointer', marginTop: 4 }}>
             + Anadir ejercicio
           </button>
         </form>
