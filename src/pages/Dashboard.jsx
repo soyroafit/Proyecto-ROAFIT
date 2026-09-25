@@ -12,7 +12,7 @@ const STATUS_COLOR = {
   pending: '#8E8E94'
 }
 
-export default function Dashboard({ session, onOpenPrograms }) {
+export default function Dashboard({ session, onOpenPrograms, onOpenClient }) {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -158,6 +158,7 @@ export default function Dashboard({ session, onOpenPrograms }) {
         {clients.map((c) => (
           <div
             key={c.id}
+            onClick={() => onOpenClient(c.id)}
             style={{
               background: '#1B1B1F',
               border: '1px solid #2A2A2F',
@@ -165,7 +166,8 @@ export default function Dashboard({ session, onOpenPrograms }) {
               padding: 16,
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between'
+              justifyContent: 'space-between',
+              cursor: 'pointer'
             }}
           >
             <div>
