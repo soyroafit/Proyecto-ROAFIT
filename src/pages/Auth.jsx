@@ -12,11 +12,14 @@ const inputStyle = {
   width: '100%',
   boxSizing: 'border-box'
 }
+const plainInputStyle = { ...inputStyle, padding: '12px 14px' }
 
 export default function Auth({ inviteTrainerId }) {
   const isClientInvite = Boolean(inviteTrainerId)
   const [mode, setMode] = useState(isClientInvite ? 'signup' : 'signin')
   const [fullName, setFullName] = useState('')
+  const [gender, setGender] = useState('')
+  const [intakeGoal, setIntakeGoal] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -32,12 +35,7 @@ export default function Auth({ inviteTrainerId }) {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-            role: isClientInvite ? 'client' : 'trainer'
-          }
-        }
+        options: { data: { full_name: fullName, role: isClientInvite ? 'client' : 'trainer' } }
       })
       if (signUpError) {
         setError(signUpError.message)
@@ -46,7 +44,9 @@ export default function Auth({ inviteTrainerId }) {
       }
       if (isClientInvite) {
         const { error: linkError } = await supabase.rpc('accept_client_invite', {
-          p_trainer_id: inviteTrainerId
+          p_trainer_id: inviteTrainerId,
+          p_gender: gender,
+          p_client_goal_note: intakeGoal
         })
         if (linkError) {
           setError('Cuenta creada, pero no se pudo vincular con tu entrenador: ' + linkError.message)
@@ -103,13 +103,11 @@ export default function Auth({ inviteTrainerId }) {
         </div>
 
         <div style={{ fontSize: 20, fontWeight: 800, marginBottom: 4 }}>
-          {isClientInvite
-            ? 'Unete como cliente'
-            : mode === 'signin' ? 'Panel del entrenador' : 'Crea tu cuenta de entrenador'}
+          {isClientInvite ? 'Unete como cliente' : mode === 'signin' ? 'Panel del entrenador' : 'Crea tu cuenta de entrenador'}
         </div>
         <div style={{ fontSize: 13, color: '#8E8E94', marginBottom: 24 }}>
           {isClientInvite
-            ? 'Tu entrenador te invito a ROAFIT. Crea tu cuenta para empezar.'
+            ? 'Tu entrenador te invito a ROAFIT. Cuentanos un poco de ti para empezar.'
             : mode === 'signin'
             ? 'Inicia sesion para ver tus clientes y programas.'
             : 'Solo la primera vez, luego inicias sesion normal.'}
@@ -122,16 +120,35 @@ export default function Auth({ inviteTrainerId }) {
               placeholder="Tu nombre"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              style={inputStyle}
+              style={plainInputStyle}
               required
             />
           )}
+
+          {isClientInvite && (
+            <select value={gender} onChange={(e) => setGender(e.target.value)} style={plainInputStyle} required>
+              <option value="" disabled>Sexo</option>
+              <option value="Hombre">Hombre</option>
+              <option value="Mujer">Mujer</option>
+              <option value="Prefiero no decirlo">Prefiero no decirlo</option>
+            </select>
+          )}
+
+          {isClientInvite && (
+            <textarea
+              placeholder="Que quieres conseguir con el entrenamiento?"
+              value={intakeGoal}
+              onChange={(e) => setIntakeGoal(e.target.value)}
+              style={{ ...plainInputStyle, minHeight: 70, resize: 'vertical', fontFamily: 'inherit' }}
+            />
+          )}
+
           <input
             type="email"
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={inputStyle}
+            style={plainInputStyle}
             required
           />
 
