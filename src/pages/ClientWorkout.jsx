@@ -1,166 +1,122 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 
-const inputStyle = {
-  background: '#101012',
-  border: '1px solid #2A2A2F',
-  borderRadius: 8,
-  padding: '8px 10px',
-  color: '#F5F4F0',
-  fontSize: 13,
-  outline: 'none',
-  boxSizing: 'border-box',
-  width: 70
-}
+const input = { background: '#101012', border: '1px solid #2A2A2F', borderRadius: 8, padding: '8px 10px', color: '#F5F4F0', fontSize: 13, width: 60, boxSizing: 'border-box' }
 
 export default function ClientWorkout({ session, dayId, dayLabel, onBack }) {
   const [exercises, setExercises] = useState([])
-  const [loggedByExercise, setLoggedByExercise] = useState({})
-  const [drafts, setDrafts] = useState({})
+  const [idx, setIdx] = useState(0)
+  const [logged, setLogged] = useState({})
+  const [draft, setDraft] = useState({ weight: '', reps: '' })
+  const [note, setNote] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   async function loadAll() {
     setLoading(true)
-    const { data: exs, error: exError } = await supabase
-      .from('planned_exercises')
-      .select('id, name, target_sets, target_reps, target_weight_kg, target_rir')
-      .eq('workout_day_id', dayId)
-      .order('order_index')
-
-    if (exError) {
-      setError(exError.message)
-      setLoading(false)
-      return
-    }
+    const { data: exs } = await supabase.from('planned_exercises').select('id, name, target_sets, target_reps, target_weight_kg, target_rir').eq('workout_day_id', dayId).order('order_index')
     setExercises(exs || [])
-
-    const ids = (exs || []).map((e) => e.id)
-    if (ids.length > 0) {
-      const { data: logs, error: logsError } = await supabase
-        .from('logged_sets')
-        .select('id, planned_exercise_id, set_number, actual_reps, actual_weight_kg')
-        .eq('client_id', session.user.id)
-        .in('planned_exercise_id', ids)
-        .order('set_number')
-
-      if (!logsError) {
-        const grouped = {}
-        for (const log of logs || []) {
-          if (!grouped[log.planned_exercise_id]) grouped[log.planned_exercise_id] = []
-          grouped[log.planned_exercise_id].push(log)
-        }
-        setLoggedByExercise(grouped)
-      }
-
-      const initialDrafts = {}
-      for (const ex of exs || []) {
-        initialDrafts[ex.id] = {
-          weight: ex.target_weight_kg != null ? String(ex.target_weight_kg) : '',
-          reps: String(ex.target_reps)
-        }
-      }
-      setDrafts(initialDrafts)
+    const { data: cd } = await supabase.from('client_details').select('trainer_notes').eq('id', session.user.id).maybeSingle()
+    if (cd) setNote(cd.trainer_notes || '')
+    const ids = (exs || []).map(e => e.id)
+    if (ids.length) {
+      const { data: logs } = await supabase.from('logged_sets').select('id, planned_exercise_id, set_number, actual_reps, actual_weight_kg').eq('client_id', session.user.id).in('planned_exercise_id', ids).order('set_number')
+      const grouped = {}
+      for (const l of logs || []) { (grouped[l.planned_exercise_id] = grouped[l.planned_exercise_id] || []).push(l) }
+      setLogged(grouped)
     }
     setLoading(false)
   }
-
   useEffect(() => { loadAll() }, [dayId])
 
-  function updateDraft(exId, field, value) {
-    setDrafts((prev) => ({ ...prev, [exId]: { ...prev[exId], [field]: value } }))
+  const ex = exercises[idx]
+  useEffect(() => {
+    if (ex) setDraft({ weight: ex.target_weight_kg != null ? String(ex.target_weight_kg) : '', reps: String(ex.target_reps) })
+  }, [idx, exercises.length])
+
+  if (loading) return <div style={{ minHeight: '100vh', background: '#101012', color: '#8E8E94', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>Cargando...</div>
+  if (exercises.length === 0) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#101012', color: '#F5F4F0', padding: 24, fontFamily: 'sans-serif' }}>
+        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid #2A2A2F', color: '#C8C8CC', borderRadius: 100, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Volver</button>
+        <div style={{ marginTop: 20, color: '#8E8E94' }}>Este dia no tiene ejercicios cargados.</div>
+      </div>
+    )
   }
 
-  async function handleLogSet(exercise) {
-    const draft = drafts[exercise.id] || {}
-    const currentLogs = loggedByExercise[exercise.id] || []
-    const nextSetNumber = currentLogs.length + 1
+  const logs = logged[ex.id] || []
+  const done = logs.length >= ex.target_sets
 
+  async function handleLog() {
     const { error: insertError } = await supabase.from('logged_sets').insert({
-      planned_exercise_id: exercise.id,
-      client_id: session.user.id,
-      set_number: nextSetNumber,
-      actual_reps: Number(draft.reps),
-      actual_weight_kg: Number(draft.weight)
+      planned_exercise_id: ex.id, client_id: session.user.id, set_number: logs.length + 1,
+      actual_reps: Number(draft.reps), actual_weight_kg: Number(draft.weight)
     })
-
-    if (insertError) {
-      setError(insertError.message)
-      return
-    }
-    loadAll()
+    if (insertError) { setError(insertError.message); return }
+    await loadAll()
   }
 
-  if (loading) {
-    return <div style={{ minHeight: '100vh', background: '#101012', color: '#8E8E94', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>Cargando...</div>
+  function goNext() {
+    if (idx < exercises.length - 1) setIdx(idx + 1)
+    else onBack()
   }
 
   return (
     <div style={{ minHeight: '100vh', background: '#101012', color: '#F5F4F0', fontFamily: "'Manrope', ui-sans-serif, system-ui, sans-serif", padding: 24, boxSizing: 'border-box' }}>
-      <button onClick={onBack} style={{ background: 'transparent', border: '1px solid #2A2A2F', color: '#C8C8CC', borderRadius: 100, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', marginBottom: 20 }}>
-        Volver a mi programa
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <button onClick={onBack} style={{ background: 'transparent', border: '1px solid #2A2A2F', color: '#C8C8CC', borderRadius: 100, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>Salir</button>
+        <div style={{ fontSize: 11, color: '#8E8E94', fontWeight: 700 }}>EJERCICIO {idx + 1} DE {exercises.length}</div>
+      </div>
 
-      <div style={{ fontSize: 22, fontWeight: 800, marginBottom: 20 }}>{dayLabel}</div>
+      <div style={{ display: 'flex', gap: 4, marginBottom: 18 }}>
+        {exercises.map((_, i) => (
+          <div key={i} style={{ flex: 1, height: 4, borderRadius: 2, background: i <= idx ? '#CFFF5C' : '#2A2A2F' }} />
+        ))}
+      </div>
 
-      {error && <div style={{ fontSize: 13, color: '#FF6B7F', marginBottom: 16 }}>{error}</div>}
-
-      {exercises.length === 0 && (
-        <div style={{ background: '#1B1B1F', border: '1px dashed #2A2A2F', borderRadius: 12, padding: 20, textAlign: 'center', color: '#8E8E94', fontSize: 13 }}>
-          Este dia todavia no tiene ejercicios cargados.
+      {note && (
+        <div style={{ background: '#171417', border: '1px solid #2A2320', borderRadius: 12, padding: 12, marginBottom: 14, fontSize: 12, color: '#C8C8CC' }}>
+          Tu entrenador: {note}
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {exercises.map((ex) => {
-          const logs = loggedByExercise[ex.id] || []
-          const draft = drafts[ex.id] || { weight: '', reps: '' }
-          return (
-            <div key={ex.id} style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 14, padding: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: 15 }}>{ex.name}</div>
-              <div style={{ fontSize: 12, color: '#8E8E94', marginTop: 2, marginBottom: 10 }}>
-                Objetivo: {ex.target_sets} x {ex.target_reps}{ex.target_weight_kg ? ' - ' + ex.target_weight_kg + ' kg' : ''} - RIR {ex.target_rir}
-              </div>
+      <div style={{ fontFamily: "'Bricolage Grotesque', sans-serif", fontSize: 24, fontWeight: 800, marginBottom: 2 }}>{ex.name}</div>
+      <div style={{ fontSize: 12, color: '#8E8E94', marginBottom: 14 }}>{dayLabel}</div>
 
-              {logs.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10 }}>
-                  {logs.map((log) => (
-                    <div key={log.id} style={{ fontSize: 12, color: '#8AD16C' }}>
-                      Serie {log.set_number}: {log.actual_weight_kg} kg x {log.actual_reps}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <input
-                  style={inputStyle}
-                  type="number"
-                  step="0.5"
-                  placeholder="Kg"
-                  value={draft.weight}
-                  onChange={(e) => updateDraft(ex.id, 'weight', e.target.value)}
-                />
-                <span style={{ fontSize: 12, color: '#8E8E94' }}>kg x</span>
-                <input
-                  style={inputStyle}
-                  type="number"
-                  placeholder="Reps"
-                  value={draft.reps}
-                  onChange={(e) => updateDraft(ex.id, 'reps', e.target.value)}
-                />
-                <span style={{ fontSize: 12, color: '#8E8E94' }}>reps</span>
-                <button
-                  onClick={() => handleLogSet(ex)}
-                  style={{ background: '#CFFF5C', color: '#101012', border: 'none', borderRadius: 100, padding: '8px 16px', fontSize: 12, fontWeight: 800, cursor: 'pointer', marginLeft: 'auto' }}
-                >
-                  Registrar serie {logs.length + 1}
-                </button>
-              </div>
-            </div>
-          )
-        })}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+        <div style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 10, padding: '8px 12px', fontSize: 13, fontWeight: 700 }}>{ex.target_sets} x {ex.target_reps}</div>
+        {ex.target_weight_kg != null && <div style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 10, padding: '8px 12px', fontSize: 13, fontWeight: 700 }}>{ex.target_weight_kg} kg</div>}
+        <div style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 10, padding: '8px 12px', fontSize: 13, fontWeight: 700 }}>RIR {ex.target_rir}</div>
       </div>
+      <div style={{ fontSize: 11, color: '#8E8E94', marginBottom: 18 }}>Objetivo de tu entrenador</div>
+
+      {error && <div style={{ fontSize: 13, color: '#FF6B7F', marginBottom: 10 }}>{error}</div>}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+        {logs.map((l) => (
+          <div key={l.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: '#171A14', border: '1px solid #2A3324', borderRadius: 10 }}>
+            <div style={{ width: 20, height: 20, borderRadius: '50%', background: '#CFFF5C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#101012', fontWeight: 800 }}>OK</div>
+            <div style={{ fontSize: 13, fontWeight: 700, flex: 1 }}>Serie {l.set_number}</div>
+            <div style={{ fontSize: 13, color: '#8AD16C', fontWeight: 700 }}>{l.actual_weight_kg} kg x {l.actual_reps}</div>
+          </div>
+        ))}
+
+        {!done && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: 12, background: '#1B1B1F', border: '1.5px solid #CFFF5C', borderRadius: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 800 }}>Serie {logs.length + 1}</div>
+            <input style={{ ...input, marginLeft: 'auto' }} type="number" step="0.5" value={draft.weight} onChange={(e) => setDraft({ ...draft, weight: e.target.value })} />
+            <span style={{ fontSize: 11, color: '#8E8E94' }}>kg x</span>
+            <input style={input} type="number" value={draft.reps} onChange={(e) => setDraft({ ...draft, reps: e.target.value })} />
+            <button onClick={handleLog} style={{ width: 26, height: 26, borderRadius: '50%', background: '#CFFF5C', border: 'none', fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>OK</button>
+          </div>
+        )}
+      </div>
+
+      {done && (
+        <button onClick={goNext} style={{ background: '#CFFF5C', color: '#101012', border: 'none', borderRadius: 100, padding: 14, fontSize: 15, fontWeight: 800, width: '100%', cursor: 'pointer' }}>
+          {idx < exercises.length - 1 ? 'Siguiente ejercicio' : 'Finalizar entrenamiento'}
+        </button>
+      )}
     </div>
   )
 }
