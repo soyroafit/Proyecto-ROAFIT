@@ -36,7 +36,7 @@ export default function ClientDetail({ session, clientId, onBack, onOpenProgram 
   async function loadClient() {
     setLoading(true)
     const [clientRes, programsRes] = await Promise.all([
-      supabase.from('client_details').select('id, goal, status, pathologies, trainer_notes, profiles!client_details_id_fkey(full_name)').eq('id', clientId).single(),
+      supabase.from('client_details').select('id, goal, status, pathologies, trainer_notes, gender, client_goal_note, profiles!client_details_id_fkey(full_name)').eq('id', clientId).single(),
       supabase.from('programs').select('id, name, goal_type, weeks, days_per_week').eq('client_id', clientId).order('created_at', { ascending: false })
     ])
     if (clientRes.error) {
@@ -71,6 +71,12 @@ export default function ClientDetail({ session, clientId, onBack, onOpenProgram 
     setTimeout(() => setSaved(false), 2000)
   }
 
+  async function handleDeleteProgram(id) {
+    if (!window.confirm('Eliminar este programa? Esta accion no se puede deshacer.')) return
+    await supabase.from('programs').delete().eq('id', id)
+    setPrograms((prev) => prev.filter((p) => p.id !== id))
+  }
+
   if (loading) {
     return <div style={{ minHeight: '100vh', background: '#101012', color: '#8E8E94', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif' }}>Cargando...</div>
   }
@@ -89,8 +95,24 @@ export default function ClientDetail({ session, clientId, onBack, onOpenProgram 
         </div>
       )}
 
+      {client && (client.gender || client.client_goal_note) && (
+        <div style={{ background: '#171A24', border: '1px solid #2A3244', borderRadius: 16, padding: 18, marginBottom: 20 }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.05em', color: '#8FA8D8', fontWeight: 700, marginBottom: 10 }}>DATOS QUE DIO EL CLIENTE AL REGISTRARSE</div>
+          {client.gender && (
+            <div style={{ fontSize: 13, marginBottom: 6 }}>
+              <span style={{ color: '#8E8E94' }}>Sexo: </span>{client.gender}
+            </div>
+          )}
+          {client.client_goal_note && (
+            <div style={{ fontSize: 13 }}>
+              <span style={{ color: '#8E8E94' }}>Que busca conseguir: </span>{client.client_goal_note}
+            </div>
+          )}
+        </div>
+      )}
+
       <form onSubmit={handleSave} style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 24 }}>
-        <div style={{ fontSize: 13, fontWeight: 700 }}>Ficha del cliente</div>
+        <div style={{ fontSize: 13, fontWeight: 700 }}>Ficha del cliente (organizada por ti)</div>
 
         <div style={{ display: 'flex', gap: 12 }}>
           <div style={{ flex: 2 }}>
@@ -134,13 +156,17 @@ export default function ClientDetail({ session, clientId, onBack, onOpenProgram 
         {programs.map((p) => (
           <div
             key={p.id}
-            onClick={() => onOpenProgram(p.id)}
-            style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 12, padding: 14, cursor: 'pointer' }}
+            style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 12, padding: 14, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
           >
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
-            <div style={{ fontSize: 12, color: '#8E8E94', marginTop: 2 }}>
-              {p.goal_type} - {p.weeks} semanas - {p.days_per_week} dias/semana
+            <div onClick={() => onOpenProgram(p.id)} style={{ cursor: 'pointer', flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
+              <div style={{ fontSize: 12, color: '#8E8E94', marginTop: 2 }}>
+                {p.goal_type} - {p.weeks} semanas - {p.days_per_week} dias/semana
+              </div>
             </div>
+            <button onClick={() => handleDeleteProgram(p.id)} style={{ background: 'transparent', border: 'none', color: '#FF6B7F', fontSize: 12, fontWeight: 700, cursor: 'pointer', marginLeft: 12 }}>
+              Eliminar
+            </button>
           </div>
         ))}
       </div>
