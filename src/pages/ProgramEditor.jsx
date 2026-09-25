@@ -13,16 +13,20 @@ const inputStyle = {
   width: '100%'
 }
 const fieldLabelStyle = { fontSize: 11, color: '#8E8E94', marginBottom: 4, display: 'block' }
+const CUSTOM = '__custom__'
 
 export default function ProgramEditor({ session, programId, onBack }) {
   const [program, setProgram] = useState(null)
   const [days, setDays] = useState([])
   const [activeDayId, setActiveDayId] = useState(null)
   const [exercises, setExercises] = useState([])
+  const [catalog, setCatalog] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const [exName, setExName] = useState('')
+  const [muscleGroup, setMuscleGroup] = useState('')
+  const [exChoice, setExChoice] = useState('')
+  const [customName, setCustomName] = useState('')
   const [exSets, setExSets] = useState(4)
   const [exReps, setExReps] = useState(8)
   const [exWeight, setExWeight] = useState('')
@@ -30,9 +34,10 @@ export default function ProgramEditor({ session, programId, onBack }) {
 
   async function loadProgram() {
     setLoading(true)
-    const [programRes, daysRes] = await Promise.all([
+    const [programRes, daysRes, catalogRes] = await Promise.all([
       supabase.from('programs').select('id, name, goal_type, weeks, days_per_week').eq('id', programId).single(),
-      supabase.from('workout_days').select('id, day_number, label').eq('program_id', programId).order('day_number')
+      supabase.from('workout_days').select('id, day_number, label').eq('program_id', programId).order('day_number'),
+      supabase.from('exercise_catalog').select('id, name, muscle_group').order('muscle_group').order('name')
     ])
     if (programRes.error) setError(programRes.error.message)
     else setProgram(programRes.data)
@@ -40,6 +45,12 @@ export default function ProgramEditor({ session, programId, onBack }) {
       setDays(daysRes.data || [])
       if (daysRes.data && daysRes.data.length > 0 && !activeDayId) {
         setActiveDayId(daysRes.data[0].id)
+      }
+    }
+    if (!catalogRes.error) {
+      setCatalog(catalogRes.data || [])
+      if (catalogRes.data && catalogRes.data.length > 0) {
+        setMuscleGroup(catalogRes.data[0].muscle_group)
       }
     }
     setLoading(false)
@@ -58,12 +69,22 @@ export default function ProgramEditor({ session, programId, onBack }) {
   useEffect(() => { loadProgram() }, [programId])
   useEffect(() => { loadExercises(activeDayId) }, [activeDayId])
 
+  const muscleGroups = [...new Set(catalog.map((c) => c.muscle_group))]
+  const exercisesForGroup = catalog.filter((c) => c.muscle_group === muscleGroup)
+
+  useEffect(() => {
+    if (exercisesForGroup.length > 0) setExChoice(exercisesForGroup[0].name)
+    else setExChoice(CUSTOM)
+  }, [muscleGroup, catalog.length])
+
   async function handleAddExercise(e) {
     e.preventDefault()
     if (!activeDayId) return
+    const finalName = exChoice === CUSTOM ? customName : exChoice
+    if (!finalName) return
     const { error: insertError } = await supabase.from('planned_exercises').insert({
       workout_day_id: activeDayId,
-      name: exName,
+      name: finalName,
       target_sets: Number(exSets),
       target_reps: Number(exReps),
       target_weight_kg: exWeight === '' ? null : Number(exWeight),
@@ -74,8 +95,7 @@ export default function ProgramEditor({ session, programId, onBack }) {
       setError(insertError.message)
       return
     }
-    setExName('')
-    setExWeight('')
+    setCustomName('')
     loadExercises(activeDayId)
   }
 
@@ -150,10 +170,30 @@ export default function ProgramEditor({ session, programId, onBack }) {
       {activeDayId && (
         <form onSubmit={handleAddExercise} style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 2 }}>Anadir ejercicio</div>
-          <div>
-            <label style={fieldLabelStyle}>Nombre del ejercicio</label>
-            <input style={inputStyle} placeholder="Ej: Press banca" value={exName} onChange={(e) => setExName(e.target.value)} required />
+
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <label style={fieldLabelStyle}>Grupo muscular</label>
+              <select style={inputStyle} value={muscleGroup} onChange={(e) => setMuscleGroup(e.target.value)}>
+                {muscleGroups.map((g) => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={fieldLabelStyle}>Ejercicio</label>
+              <select style={inputStyle} value={exChoice} onChange={(e) => setExChoice(e.target.value)}>
+                {exercisesForGroup.map((ex) => <option key={ex.id} value={ex.name}>{ex.name}</option>)}
+                <option value={CUSTOM}>Otro (escribir)</option>
+              </select>
+            </div>
           </div>
+
+          {exChoice === CUSTOM && (
+            <div>
+              <label style={fieldLabelStyle}>Nombre del ejercicio</label>
+              <input style={inputStyle} placeholder="Ej: Press banca" value={customName} onChange={(e) => setCustomName(e.target.value)} required />
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}>
               <label style={fieldLabelStyle}>Series</label>
