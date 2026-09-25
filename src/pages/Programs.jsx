@@ -104,6 +104,13 @@ export default function Programs({ session, onBack, onOpenProgram }) {
     onOpenProgram(program.id)
   }
 
+  async function handleDelete(id, e) {
+    e.stopPropagation()
+    if (!window.confirm('Eliminar este programa? Esta accion no se puede deshacer.')) return
+    await supabase.from('programs').delete().eq('id', id)
+    setPrograms((prev) => prev.filter((p) => p.id !== id))
+  }
+
   return (
     <div style={{ minHeight: '100vh', background: '#101012', color: '#F5F4F0', fontFamily: "'Manrope', ui-sans-serif, system-ui, sans-serif", padding: 24, boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
@@ -185,13 +192,17 @@ export default function Programs({ session, onBack, onOpenProgram }) {
         {programs.map((p) => (
           <div
             key={p.id}
-            onClick={() => onOpenProgram(p.id)}
-            style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 12, padding: 16, cursor: 'pointer' }}
+            style={{ background: '#1B1B1F', border: '1px solid #2A2A2F', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
           >
-            <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
-            <div style={{ fontSize: 12, color: '#8E8E94', marginTop: 4 }}>
-              {p.goal_type} - {p.weeks} semanas - {p.days_per_week} dias/semana - {p.profiles?.full_name || 'Sin asignar'}
+            <div onClick={() => onOpenProgram(p.id)} style={{ cursor: 'pointer', flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: 14 }}>{p.name}</div>
+              <div style={{ fontSize: 12, color: '#8E8E94', marginTop: 4 }}>
+                {p.goal_type} - {p.weeks} semanas - {p.days_per_week} dias/semana - {p.profiles?.full_name || 'Sin asignar'}
+              </div>
             </div>
+            <button onClick={(e) => handleDelete(p.id, e)} style={{ background: 'transparent', border: 'none', color: '#FF6B7F', fontSize: 12, fontWeight: 700, cursor: 'pointer', marginLeft: 12 }}>
+              Eliminar
+            </button>
           </div>
         ))}
       </div>
