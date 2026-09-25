@@ -4,6 +4,7 @@ import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import Programs from './pages/Programs'
 import ProgramEditor from './pages/ProgramEditor'
+import ClientDetail from './pages/ClientDetail'
 
 const loadingStyle = {
   minHeight: '100vh',
@@ -84,11 +85,27 @@ export default function App() {
         <ProgramEditor
           session={session}
           programId={trainerView.programId}
-          onBack={() => setTrainerView({ name: 'programs' })}
+          onBack={() => setTrainerView(trainerView.fromClient ? { name: 'clientDetail', clientId: trainerView.fromClient } : { name: 'programs' })}
         />
       )
     }
-    return <Dashboard session={session} onOpenPrograms={() => setTrainerView({ name: 'programs' })} />
+    if (trainerView.name === 'clientDetail') {
+      return (
+        <ClientDetail
+          session={session}
+          clientId={trainerView.clientId}
+          onBack={() => setTrainerView({ name: 'clients' })}
+          onOpenProgram={(id) => setTrainerView({ name: 'programEditor', programId: id, fromClient: trainerView.clientId })}
+        />
+      )
+    }
+    return (
+      <Dashboard
+        session={session}
+        onOpenPrograms={() => setTrainerView({ name: 'programs' })}
+        onOpenClient={(id) => setTrainerView({ name: 'clientDetail', clientId: id })}
+      />
+    )
   }
 
   if (role === 'client') return <ClientPlaceholder onSignOut={() => supabase.auth.signOut()} />
