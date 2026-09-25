@@ -12,7 +12,7 @@ const STATUS_COLOR = {
   pending: '#8E8E94'
 }
 
-export default function Dashboard({ session }) {
+export default function Dashboard({ session, onOpenPrograms }) {
   const [clients, setClients] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -55,7 +55,7 @@ export default function Dashboard({ session }) {
         boxSizing: 'border-box'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div
             style={{
@@ -91,6 +91,18 @@ export default function Dashboard({ session }) {
           }}
         >
           Cerrar sesion
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        <div style={{ background: '#1B1B1F', color: '#F5F4F0', border: '1px solid #2A2A2F', borderRadius: 100, padding: '7px 16px', fontSize: 13, fontWeight: 700 }}>
+          Mis clientes
+        </div>
+        <button
+          onClick={onOpenPrograms}
+          style={{ background: 'transparent', color: '#C8C8CC', border: '1px solid #2A2A2F', borderRadius: 100, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}
+        >
+          Programas
         </button>
       </div>
 
