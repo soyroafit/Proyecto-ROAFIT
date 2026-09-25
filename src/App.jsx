@@ -8,12 +8,14 @@ import ClientDetail from './pages/ClientDetail'
 import ClientHome from './pages/ClientHome'
 import ClientWorkout from './pages/ClientWorkout'
 import ClientProgress from './pages/ClientProgress'
+import ClientIntake from './pages/ClientIntake'
 
 const loadingStyle = { minHeight: '100vh', background: '#101012', color: '#8E8E94', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', fontSize: 14 }
 
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [role, setRole] = useState(undefined)
+  const [intakeDone, setIntakeDone] = useState(undefined)
   const [trainerView, setTrainerView] = useState({ name: 'clients' })
   const [clientView, setClientView] = useState({ name: 'home' })
 
@@ -35,6 +37,15 @@ export default function App() {
     return () => { cancelled = true }
   }, [session])
 
+  useEffect(() => {
+    if (role !== 'client' || !session) { setIntakeDone(undefined); return }
+    let cancelled = false
+    supabase.from('client_details').select('intake_completed').eq('id', session.user.id).maybeSingle().then(({ data }) => {
+      if (!cancelled) setIntakeDone(data ? Boolean(data.intake_completed) : false)
+    })
+    return () => { cancelled = true }
+  }, [role, session])
+
   if (session === undefined) return <div style={loadingStyle}>Cargando...</div>
   if (!session) return <Auth inviteTrainerId={inviteTrainerId} />
   if (role === undefined) return <div style={loadingStyle}>Cargando tu perfil...</div>
@@ -53,6 +64,8 @@ export default function App() {
   }
 
   if (role === 'client') {
+    if (intakeDone === undefined) return <div style={loadingStyle}>Cargando...</div>
+    if (intakeDone === false) return <ClientIntake session={session} onDone={() => setIntakeDone(true)} />
     if (clientView.name === 'workout') {
       return <ClientWorkout session={session} dayId={clientView.dayId} dayLabel={clientView.dayLabel} onBack={() => setClientView({ name: 'home' })} />
     }
