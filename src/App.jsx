@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from './lib/supabaseClient'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
+import Programs from './pages/Programs'
+import ProgramEditor from './pages/ProgramEditor'
 
 const loadingStyle = {
   minHeight: '100vh',
@@ -31,6 +33,7 @@ function ClientPlaceholder({ onSignOut }) {
 export default function App() {
   const [session, setSession] = useState(undefined)
   const [role, setRole] = useState(undefined)
+  const [trainerView, setTrainerView] = useState({ name: 'clients' })
 
   const params = new URLSearchParams(window.location.search)
   const inviteTrainerId = params.get('invite')
@@ -66,7 +69,27 @@ export default function App() {
 
   if (role === undefined) return <div style={loadingStyle}>Cargando tu perfil...</div>
 
-  if (role === 'trainer') return <Dashboard session={session} />
+  if (role === 'trainer') {
+    if (trainerView.name === 'programs') {
+      return (
+        <Programs
+          session={session}
+          onBack={() => setTrainerView({ name: 'clients' })}
+          onOpenProgram={(id) => setTrainerView({ name: 'programEditor', programId: id })}
+        />
+      )
+    }
+    if (trainerView.name === 'programEditor') {
+      return (
+        <ProgramEditor
+          session={session}
+          programId={trainerView.programId}
+          onBack={() => setTrainerView({ name: 'programs' })}
+        />
+      )
+    }
+    return <Dashboard session={session} onOpenPrograms={() => setTrainerView({ name: 'programs' })} />
+  }
 
   if (role === 'client') return <ClientPlaceholder onSignOut={() => supabase.auth.signOut()} />
 
